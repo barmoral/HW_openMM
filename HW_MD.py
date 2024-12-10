@@ -10,14 +10,23 @@ logging.basicConfig(
 )
 
 import polymerist as ps
-from polymerist.genutils.importutils import module_hierarchy
+from polymerist.genutils.fileutils.pathutils import assemble_path
+
+import warnings
+warnings.filterwarnings('ignore')
+
+import os
+from pathlib import Path
+import pickle
+
 
 # Parameterizing PDB system
 
 ## Initializing paths and working directory
 cwd=os.getcwd()
-working_dir = Path(cwd+'/HW_original') # can change this to wherever your files are
-mol_name = 'HW_35_original'
+
+working_dir = Path(cwd+'/HW_35_original') # Can change this to wherever your files are
+mol_name = 'HW_35m' # Make sure this is the name of existing pdb file in folder above
 
 pdb_path = assemble_path(working_dir, mol_name, extension='pdb') 
 sdf_path = assemble_path(working_dir, mol_name, extension='sdf') 
@@ -34,7 +43,6 @@ else:
     offtop = Topology.from_pdb(pdb_path)
 
 ## Parameterize system with OpenFF
-import pickle
 from openff.interchange import Interchange
 from polymerist.unitutils.interop import openff_to_openmm
 from polymerist.mdtools.openfftools import boxvectors
@@ -61,12 +69,12 @@ ommsys = inc.to_openmm_system(combine_nonbonded_forces=False, add_constrained_fo
 ommpos = openff_to_openmm(inc.positions)
 
 
-# Applying restraints - Flat-bottom Potentials
+# Applying restraints - Harmonic Potential
 
 from openmm.unit import kilojoule_per_mole, nanometer
 from openmm import CustomExternalForce
 
-k = 0.76829653*(kilojoule_per_mole/nanometer**2)
+k = 0.68095403*(kilojoule_per_mole/nanometer**2) # define force constant here
 z_center = 7.2 * nanometer
 
 fb_force = CustomExternalForce('0.5*k*((z-z0)^2)')
@@ -100,7 +108,7 @@ all_omm_sims : dict[str, SimulationParameters] = {
         integ_params=IntegratorParameters(
             time_step=2*femtoseconds,
             total_time=2*nanosecond,
-            num_samples=50,
+            num_samples=100,
         ),
         thermo_params=ThermoParameters(
             ensemble='NVT',
@@ -114,7 +122,7 @@ all_omm_sims : dict[str, SimulationParameters] = {
         integ_params=IntegratorParameters(
             time_step=2*femtoseconds,
             total_time=20*nanosecond,
-            num_samples=250,
+            num_samples=1001,
         ),
         thermo_params=ThermoParameters(
             ensemble='NVT',
@@ -128,7 +136,7 @@ all_omm_sims : dict[str, SimulationParameters] = {
 
 from polymerist.mdtools.openmmtools.execution import run_simulation_schedule
 
-omm_sim_dir = Path('HW_1m/OpenMM_HW_original')
+omm_sim_dir = Path('OpenMM_HW_35_original')
 omm_sim_dir.mkdir(exist_ok=True)
 
 history = run_simulation_schedule(
